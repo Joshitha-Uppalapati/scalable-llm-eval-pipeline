@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Environment variables
+.env
+
+# Local run artifacts
+runs/
+reports/
+
+# Local notes (not committed)
+*.pages
+*.pdf
