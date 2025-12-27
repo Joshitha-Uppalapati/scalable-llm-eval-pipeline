@@ -76,7 +76,7 @@ def run(
     )
 
     # Generate report
-    generate_markdown_report(run_dir)
+    generate_markdown_report(run_dir, summary)
 
     # CLI output
     typer.echo(f"Run written to {run_dir}")
