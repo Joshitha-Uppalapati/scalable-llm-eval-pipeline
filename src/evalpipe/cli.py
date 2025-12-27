@@ -1,112 +1,123 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import typer
 
-from evalpipe.report import generate_markdown_report
 from evalpipe.loader import load_suite
-from evalpipe.runner import dummy_infer
 from evalpipe.prompts.render import render_prompt
+from evalpipe.runner import run_inference
 from evalpipe.evaluators import evaluate
 from evalpipe.aggregate import aggregate_results
 from evalpipe.storage import write_run_artifacts
 from evalpipe.compare import compare_runs
-from evalpipe.providers.openai_provider import infer as openai_infer
+from evalpipe.report import generate_markdown_report
 
 app = typer.Typer()
 
 
 @app.command()
 def run(
-    suite: Path = typer.Argument(..., help="Path to evaluation suite JSONL"),
-    provider: str = typer.Option(
-        "dummy", help="Inference provider: dummy | openai"
+    suite: Path = typer.Argument(..., help="Path to JSONL evaluation suite"),
+    model: str = typer.Option("dummy-v0", help="Model name"),
+    prompt: Path = typer.Option(
+        Path("src/evalpipe/prompts/basic_v1.txt"),
+        help="Prompt template file",
     ),
 ):
-    runs_dir = Path("runs")
-    runs_dir.mkdir(exist_ok=True)
+    """
+    Run inference + evaluation + reporting.
+    """
 
-    run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    run_dir = runs_dir / run_id
+    # Load suite
+    test_cases = load_suite(suite)
 
-    suite_data = load_suite(suite)
-    template = Path("src/evalpipe/prompts/basic_v1.txt")
+    # Render prompt (deterministic)
+    rendered_prompt = render_prompt(prompt, test_cases[0])
+    prompt_version = prompt.stem
 
-    results = []
+    # Run inference
+    results, errors, timings, token_usage = run_inference(
+        test_cases=test_cases,
+        model=model,
+        rendered_prompt=rendered_prompt,
+    )
+
+    # Evaluate
     evaluations = []
-
-    for tc in suite_data:
-        prompt = render_prompt(template, tc)
-
-        if provider == "openai":
-            out = openai_infer(prompt)
-            result = {
+    for tc, result in zip(test_cases, results):
+        evaluations.append(
+            {
                 "id": tc["id"],
-                "prompt": prompt,
-                "output": out["output"],
-                "model": out["model"],
-                "latency_ms": out["latency_ms"],
-                "prompt_tokens": out["prompt_tokens"],
-                "completion_tokens": out["completion_tokens"],
+                **evaluate(tc, result),
             }
-        else:
-            result = dummy_infer(tc)
+        )
 
-        results.append(result)
+    # Aggregate
+    summary = aggregate_results(
+        test_cases=test_cases,
+        results=results,
+        evaluations=evaluations,
+    )
 
-        eval_result = evaluate(tc, result)
-        eval_result["id"] = tc["id"]
-        evaluations.append(eval_result)
+    # Create run directory
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    run_dir = Path("runs") / run_id
 
-    summary = aggregate_results(suite_data, results, evaluations)
-
+    # Persist artifacts
     write_run_artifacts(
         run_dir=run_dir,
-        test_cases=suite_data,
+        test_cases=test_cases,
         results=results,
         evaluations=evaluations,
         summary=summary,
+        rendered_prompt=rendered_prompt,
+        prompt_version=prompt_version,
+        model=model,
+        errors=errors,
     )
-    generate_markdown_report(run_dir, summary)
 
+    # Generate report
+    generate_markdown_report(run_dir)
+
+    # CLI output
     typer.echo(f"Run written to {run_dir}")
     typer.echo(f"Pass rate: {summary['pass_rate'] * 100:.2f}%")
 
-    latency = summary.get("latency", {})
-    tokens = summary.get("tokens", {})
-
-    if latency.get("avg_ms") is not None:
+    if summary.get("prompt_tokens") is not None:
         typer.echo(
-            f"Latency (ms): avg={latency['avg_ms']} "
-            f"p95={latency['p95_ms']} "
-            f"max={latency['max_ms']}"
-        )
-
-    if tokens:
-        typer.echo(
-            f"Tokens: prompt={tokens['prompt']} "
-            f"completion={tokens['completion']}"
+            f"Tokens: prompt={summary['prompt_tokens']} "
+            f"completion={summary['completion_tokens']}"
         )
 
     if summary.get("estimated_usd_cost") is not None:
-        typer.echo(
-            f"Estimated cost (USD): ${summary['estimated_usd_cost']}"
-        )
+        typer.echo(f"Estimated cost (USD): ${summary['estimated_usd_cost']}")
 
 
 @app.command()
 def compare(
-    prev_run: Path = typer.Argument(..., help="Previous run directory"),
-    curr_run: Path = typer.Argument(..., help="Current run directory"),
+    baseline: Path = typer.Argument(..., help="Baseline run directory"),
+    current: Path = typer.Argument(..., help="Current run directory"),
 ):
-    regressions = compare_runs(prev_run, curr_run)
+    """
+    Compare two runs and show regressions.
+    """
 
-    if not regressions:
-        typer.echo("No regressions detected.")
+    deltas = compare_runs(baseline, current)
+
+    if not deltas["regressions"] and not deltas["improvements"]:
+        typer.echo("No changes detected.")
         return
 
-    typer.echo("Regressions detected:")
-    for r in regressions:
-        typer.echo(f"- {r}")
+    typer.echo("\nRegressions:")
+    for r in deltas["regressions"]:
+        typer.echo(f"  ❌ {r}")
+
+    typer.echo("\nImprovements:")
+    for i in deltas["improvements"]:
+        typer.echo(f"  ✅ {i}")
+
+    typer.echo("\nMetric deltas:")
+    for k, v in deltas["metrics"].items():
+        typer.echo(f"  {k}: {v}")
 
 
 if __name__ == "__main__":
