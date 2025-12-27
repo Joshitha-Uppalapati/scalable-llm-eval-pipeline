@@ -2,6 +2,7 @@ from pathlib import Path
 from datetime import datetime
 import typer
 
+from evalpipe.report import generate_markdown_report
 from evalpipe.loader import load_suite
 from evalpipe.runner import dummy_infer
 from evalpipe.prompts.render import render_prompt
@@ -65,6 +66,7 @@ def run(
         evaluations=evaluations,
         summary=summary,
     )
+    generate_markdown_report(run_dir, summary)
 
     typer.echo(f"Run written to {run_dir}")
     typer.echo(f"Pass rate: {summary['pass_rate'] * 100:.2f}%")
