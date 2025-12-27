@@ -68,13 +68,15 @@ def run(
 
     typer.echo(f"Run written to {run_dir}")
     typer.echo(f"Pass rate: {summary['pass_rate'] * 100:.2f}%")
-    lat = summary.get("latency", {})
+
+    latency = summary.get("latency", {})
     tokens = summary.get("tokens", {})
 
-    if lat.get("avg_ms") is not None:
+    if latency.get("avg_ms") is not None:
         typer.echo(
-            f"Latency (ms): avg={lat['avg_ms']} "
-            f"p95={lat['p95_ms']} max={lat['max_ms']}"
+            f"Latency (ms): avg={latency['avg_ms']} "
+            f"p95={latency['p95_ms']} "
+            f"max={latency['max_ms']}"
         )
 
     if tokens:
@@ -83,10 +85,11 @@ def run(
             f"completion={tokens['completion']}"
         )
 
-     if summary.get("estimated_usd_cost") is not None:
-         typer.echo(
-             f"Estimated cost (USD): ${summary['estimated_usd_cost']}"
-         )
+    if summary.get("estimated_usd_cost") is not None:
+        typer.echo(
+            f"Estimated cost (USD): ${summary['estimated_usd_cost']}"
+        )
+
 
 @app.command()
 def compare(
@@ -106,3 +109,4 @@ def compare(
 
 if __name__ == "__main__":
     app()
+
