@@ -1,9 +1,12 @@
 from typing import Dict, Any
 from datetime import datetime
-
+from evalpipe.schemas.evaluation_schema import EvaluationResult, ProviderOutput
 
 def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
-
+    """
+    Dummy inference function used for testing
+    Returns a raw dict
+    """
     prompt = test_case["prompt"]
 
     if "17 * 24" in prompt:
@@ -28,7 +31,6 @@ def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
         output = "It is undefined."
     else:
         output = "UNKNOWN"
-
     return {
         "id": test_case["id"],
         "prompt": prompt,
@@ -37,3 +39,27 @@ def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
         "model": "dummy-v0",
     }
 
+
+def run(test_case: Dict[str, Any]) -> EvaluationResult:
+    """
+    Execute a single test case and return a canonical EvaluationResult
+    """
+    raw = dummy_infer(test_case)
+
+    provider_output = ProviderOutput(
+        output=raw["output"],
+        model=raw["model"],
+        latency_ms=0,
+        prompt_tokens=None,
+        completion_tokens=None,
+    )
+
+    return EvaluationResult(
+        schema_version="v1",
+        run_id=raw["id"],
+        provider="dummy",
+        prompt=raw["prompt"],
+        provider_output=provider_output,
+        metrics={},  
+        timestamp=EvaluationResult.now_iso(),
+    )

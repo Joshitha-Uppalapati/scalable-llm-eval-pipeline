@@ -1,4 +1,4 @@
-from evalpipe.runner import dummy_infer
+from evalpipe.runner import run
 
 
 def test_dummy_infer_math():
@@ -7,9 +7,9 @@ def test_dummy_infer_math():
         "prompt": "What is 17 * 24?",
     }
 
-    result = dummy_infer(test_case)
+    result = run(test_case)
 
-    assert result["output"] == "408"
-    assert result["model"] == "dummy-v0"
-    assert "timestamp" in result
-
+    assert result.provider_output.output == "408"
+    assert result.provider_output.model == "dummy-v0"
+    assert result.run_id == "math_001"
+    assert result.provider == "dummy"
