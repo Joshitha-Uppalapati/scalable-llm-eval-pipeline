@@ -35,3 +35,5 @@
 {"id":"format_006","category":"formatting","prompt":"Reply with only TRUE or FALSE. Is snow white?","evaluation":{"type":"regex","pattern":"^(TRUE|FALSE)$"}}
 {"id":"reasoning_006","category":"reasoning","prompt":"If you have three apples and give one away, how many remain?","expected":"2","evaluation":{"type":"exact_match"}}
 
+{"id":"schema_001","category":"structure","prompt":"Return a JSON object with a name (string) and age (number).","evaluation":{"type":"schema","schema":{"type":"object","properties":{"name":{"type":"string"},"age":{"type":"number"}},"required":["name","age"]}}}
+

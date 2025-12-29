@@ -1,0 +1,67 @@
+import types
+import time
+import pytest
+
+from evalpipe.providers import openai_provider
+
+
+class DummyResponse:
+    def __init__(self):
+        self.model = "gpt-test"
+        self.choices = [
+            types.SimpleNamespace(
+                message=types.SimpleNamespace(content="Hello world")
+            )
+        ]
+        self.usage = {
+            "prompt_tokens": 5,
+            "completion_tokens": 3,
+        }
+
+
+def test_openai_provider_success(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_create(*args, **kwargs):
+        calls["count"] += 1
+        return DummyResponse()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        openai_provider.openai.ChatCompletion,
+        "create",
+        fake_create,
+    )
+
+    result = openai_provider.infer("Hello")
+
+    assert result["output"] == "Hello world"
+    assert result["model"] == "gpt-test"
+    assert result["prompt_tokens"] == 5
+    assert result["completion_tokens"] == 3
+    assert calls["count"] == 1
+
+
+def test_openai_provider_retries(monkeypatch):
+    calls = {"count": 0}
+
+    def flaky_create(*args, **kwargs):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise RuntimeError("temporary failure")
+        return DummyResponse()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        openai_provider.openai.ChatCompletion,
+        "create",
+        flaky_create,
+    )
+
+    start = time.time()
+    result = openai_provider.infer("Retry test")
+    duration = time.time() - start
+
+    assert result["output"] == "Hello world"
+    assert calls["count"] == 3
+    assert duration >= 2  # two sleep(1) retries

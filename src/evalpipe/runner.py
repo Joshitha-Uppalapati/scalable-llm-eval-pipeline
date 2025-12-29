@@ -1,12 +1,9 @@
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
 from datetime import datetime
 from evalpipe.schemas.evaluation_schema import EvaluationResult, ProviderOutput
 
+
 def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Dummy inference function used for testing
-    Returns a raw dict
-    """
     prompt = test_case["prompt"]
 
     if "17 * 24" in prompt:
@@ -31,6 +28,7 @@ def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
         output = "It is undefined."
     else:
         output = "UNKNOWN"
+
     return {
         "id": test_case["id"],
         "prompt": prompt,
@@ -41,9 +39,6 @@ def dummy_infer(test_case: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def run(test_case: Dict[str, Any]) -> EvaluationResult:
-    """
-    Execute a single test case and return a canonical EvaluationResult
-    """
     raw = dummy_infer(test_case)
 
     provider_output = ProviderOutput(
@@ -60,6 +55,46 @@ def run(test_case: Dict[str, Any]) -> EvaluationResult:
         provider="dummy",
         prompt=raw["prompt"],
         provider_output=provider_output,
-        metrics={},  
+        metrics={},
         timestamp=EvaluationResult.now_iso(),
     )
+
+
+def run_inference(
+    test_cases: List[Dict[str, Any]],
+    model: str,
+    rendered_prompt: str,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[int], Dict[str, int]]:
+    results: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+    latencies: List[int] = []
+
+    token_usage = {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+    }
+
+    for tc in test_cases:
+        try:
+            raw = dummy_infer(tc)
+            results.append(raw)
+            latencies.append(0)
+        except Exception as e:
+            errors.append(
+                {
+                    "id": tc.get("id"),
+                    "error": str(e),
+                }
+            )
+            results.append(
+                {
+                    "id": tc.get("id"),
+                    "prompt": tc.get("prompt"),
+                    "output": None,
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "model": model,
+                }
+            )
+
+    return results, errors, latencies, token_usage
+

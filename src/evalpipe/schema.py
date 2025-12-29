@@ -5,14 +5,19 @@ class SchemaError(ValueError):
     pass
 
 
-SUPPORTED_EVAL_TYPES = {"exact_match", "regex", "contains"}
+SUPPORTED_EVAL_TYPES = {
+    "exact_match",
+    "regex",
+    "contains",
+    "numeric",
+    "schema",
+}
 
 
 def validate_test_case(obj: Dict[str, Any]) -> None:
     if not isinstance(obj, dict):
         raise SchemaError("Test case must be a JSON object")
 
-    # Required top-level fields
     for field in ("id", "category", "prompt", "evaluation"):
         if field not in obj:
             raise SchemaError(f"Missing required field: '{field}'")
@@ -40,9 +45,14 @@ def validate_test_case(obj: Dict[str, Any]) -> None:
     if eval_type == "contains" and "value" not in evaluation:
         raise SchemaError("Contains evaluation requires 'value'")
 
+    if eval_type == "numeric" and "tolerance" not in evaluation:
+        raise SchemaError("Numeric evaluation requires 'tolerance'")
+
+    if eval_type == "schema" and "schema" not in evaluation:
+        raise SchemaError("Schema evaluation requires 'schema'")
+
     if "expected" in obj and not isinstance(obj["expected"], str):
         raise SchemaError("'expected' must be a string if provided")
 
     if "metadata" in obj and not isinstance(obj["metadata"], dict):
         raise SchemaError("'metadata' must be an object if provided")
-

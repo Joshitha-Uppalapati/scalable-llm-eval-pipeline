@@ -1,42 +1,44 @@
-import json
-from pathlib import Path
-from typing import Dict, Any, List
+from collections import defaultdict
 
+def compare_runs(baseline_summary: dict, current_summary: dict) -> dict:
+    base_pass = baseline_summary.get("passed", 0)
+    base_total = baseline_summary.get("total_tests", 0)
+    base_rate = (base_pass / base_total) * 100 if base_total else 0.0
 
-def load_summary(run_dir: Path) -> Dict[str, Any]:
-    with (run_dir / "summary.json").open() as f:
-        return json.load(f)
+    cur_pass = current_summary.get("passed", 0)
+    cur_total = current_summary.get("total_tests", 0)
+    cur_rate = (cur_pass / cur_total) * 100 if cur_total else 0.0
 
+    pass_rate_delta = cur_rate - base_rate
 
-def compare_runs(prev_run: Path, curr_run: Path) -> List[str]:
-    prev = load_summary(prev_run)
-    curr = load_summary(curr_run)
+    cost_delta = (
+        current_summary.get("estimated_cost", 0.0)
+        - baseline_summary.get("estimated_cost", 0.0)
+    )
 
-    regressions = []
+    latency_delta = (
+        current_summary.get("avg_latency_ms", 0.0)
+        - baseline_summary.get("avg_latency_ms", 0.0)
+    )
 
-    # pass/fail regressions
-    prev_pass = prev["pass_rate"]
-    curr_pass = curr["pass_rate"]
-    if curr_pass < prev_pass:
-        regressions.append(
-            f"Pass rate dropped from {prev_pass:.2%} to {curr_pass:.2%}"
-        )
+    base_by_cat = baseline_summary.get("by_category", {})
+    cur_by_cat = current_summary.get("by_category", {})
 
-    # latency delta
-    prev_lat = prev.get("latency", {}).get("avg_ms")
-    curr_lat = curr.get("latency", {}).get("avg_ms")
-    if prev_lat and curr_lat and curr_lat > prev_lat:
-        regressions.append(
-            f"Average latency increased from {prev_lat}ms to {curr_lat}ms"
-        )
+    regressions = defaultdict(list)
+    improvements = defaultdict(list)
 
-    # cost delta
-    prev_cost = prev.get("estimated_usd_cost", 0.0)
-    curr_cost = curr.get("estimated_usd_cost", 0.0)
-    if curr_cost > prev_cost:
-        regressions.append(
-            f"Estimated cost increased from ${prev_cost} to ${curr_cost}"
-        )
+    for cat, cur_stats in cur_by_cat.items():
+        base_stats = base_by_cat.get(cat, {})
+        if cur_stats.get("passed", 0) < base_stats.get("passed", 0):
+            regressions[cat].append(cat)
+        elif cur_stats.get("passed", 0) > base_stats.get("passed", 0):
+            improvements[cat].append(cat)
 
-    return regressions
+    return {
+        "pass_rate_delta": pass_rate_delta,
+        "cost_delta": cost_delta,
+        "latency_delta": latency_delta,
+        "regressions": dict(regressions),
+        "improvements": dict(improvements),
+    }
 
