@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import sys
 import typer
-
+import shutil
 from evalpipe.loader import load_suite
 from evalpipe.prompts.render import render_prompt
 from evalpipe.runner import run as run_single
@@ -12,10 +12,15 @@ from evalpipe.aggregate import aggregate_results
 from evalpipe.storage import write_run_artifacts
 from evalpipe.report import generate_markdown_report
 from evalpipe.compare import compare_runs
-from evalpipe.runner import run_judge
+from evalpipe.evaluators.judge import run_judge
 
 app = typer.Typer()
 
+
+@app.command()
+def clear_cache():
+    shutil.rmtree(".cache", ignore_errors=True)
+    typer.echo("Cache cleared")
 
 @app.command()
 def run(
