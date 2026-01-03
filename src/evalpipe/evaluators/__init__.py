@@ -5,6 +5,8 @@ from evalpipe.evaluators.numeric import numeric_match
 from evalpipe.evaluators.schema import schema_validate
 from evalpipe.evaluators.refusal import evaluate_refusal
 from evalpipe.evaluators.judge import evaluate_with_judge
+from evalpipe.evaluators.registry import EVALUATOR_REGISTRY, register_evaluator
+from evalpipe.evaluators.refusal import RefusalEvaluator
 
 
 def evaluate(test_case, result, judge_runner=None):
