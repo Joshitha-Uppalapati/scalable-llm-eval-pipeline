@@ -1,3 +1,10 @@
+.env
+runs/
+reports/
+__pycache__/
+.cache/
+
+
 # Python
 __pycache__/
 *.pyc
