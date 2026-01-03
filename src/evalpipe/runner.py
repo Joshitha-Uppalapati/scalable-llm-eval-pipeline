@@ -17,16 +17,6 @@ DEFAULT_PARAMS = {
 MAX_RETRIES = 2
 TIMEOUT_SECONDS = 10
 
-def run_judge(prompt: str) -> dict:
-    return {
-        "parsed": {
-            "factual_correctness": 1,
-            "completeness": 1,
-            "format_compliance": 1,
-            "explanation": "Stub judge result",
-        }
-    }
-
 
 def dummy_infer(prompt: str) -> str:
     p = prompt.lower()
@@ -148,6 +138,7 @@ def run_inference(
         results.append(res)
 
     return results, errors
+
 
 def run(test_case: Dict[str, Any]) -> EvaluationResult:
     start = time.time()
