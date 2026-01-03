@@ -109,8 +109,6 @@ def run_single(
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
-assert "temperature" in params
-assert "max_tokens" in params
 
 def run_inference(
     *,
@@ -121,6 +119,9 @@ def run_inference(
     params: Dict[str, Any] | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     params = params or DEFAULT_PARAMS
+
+    assert "temperature" in params
+    assert "max_tokens" in params
 
     results: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
@@ -164,4 +165,3 @@ def run(test_case: Dict[str, Any]) -> EvaluationResult:
         metrics={},
         timestamp=EvaluationResult.now_iso(),
     )
-
