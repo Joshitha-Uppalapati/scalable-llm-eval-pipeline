@@ -1,6 +1,7 @@
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, Tuple, Iterable, List
 from datetime import datetime
 import time
+import json
 
 from evalpipe.schemas.evaluation_schema import EvaluationResult, ProviderOutput
 from evalpipe.cache.simple_cache import (
@@ -113,7 +114,7 @@ def run_single(
 def run_inference(
     *,
     suite_id: str,
-    test_cases: List[Dict[str, Any]],
+    test_cases: Iterable[Dict[str, Any]],
     model: str,
     rendered_prompt: str,
     params: Dict[str, Any] | None = None,
@@ -165,3 +166,9 @@ def run(test_case: Dict[str, Any]) -> EvaluationResult:
         metrics={},
         timestamp=EvaluationResult.now_iso(),
     )
+
+def _yield_jsonl(path: str):
+    with open(path, "r") as f:
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
