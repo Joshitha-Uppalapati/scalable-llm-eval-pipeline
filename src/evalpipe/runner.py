@@ -2,6 +2,7 @@ from typing import Dict, Any, Tuple, Iterable, List
 from datetime import datetime
 import time
 import json
+import asyncio
 
 from evalpipe.schemas.evaluation_schema import EvaluationResult, ProviderOutput
 from evalpipe.cache.simple_cache import (
@@ -19,7 +20,8 @@ MAX_RETRIES = 2
 TIMEOUT_SECONDS = 10
 
 
-def dummy_infer(prompt: str) -> str:
+async def dummy_infer(prompt: str) -> str:
+    await asyncio.sleep(0)
     p = prompt.lower()
 
     if "17 * 24" in p:
@@ -46,7 +48,7 @@ def dummy_infer(prompt: str) -> str:
     return "UNKNOWN"
 
 
-def run_single(
+async def run_single(
     *,
     suite_id: str,
     test_case: Dict[str, Any],
@@ -72,7 +74,7 @@ def run_single(
 
     for _ in range(MAX_RETRIES + 1):
         try:
-            output = dummy_infer(rendered_prompt)
+            output = await dummy_infer(rendered_prompt)
             latency_ms = int((time.time() - start) * 1000)
 
             result = {
@@ -111,6 +113,40 @@ def run_single(
     }
 
 
+async def run_inference_async(
+    *,
+    suite_id: str,
+    test_cases: Iterable[Dict[str, Any]],
+    model: str,
+    rendered_prompt: str,
+    params: Dict[str, Any],
+    max_concurrency: int,
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def guarded(tc: Dict[str, Any]) -> Dict[str, Any]:
+        async with semaphore:
+            return await run_single(
+                suite_id=suite_id,
+                test_case=tc,
+                model=model,
+                rendered_prompt=rendered_prompt,
+                params=params,
+            )
+
+    tasks = [guarded(tc) for tc in test_cases]
+
+    results: List[Dict[str, Any]] = []
+    errors: List[Dict[str, Any]] = []
+
+    for res in await asyncio.gather(*tasks):
+        if res.get("error"):
+            errors.append(res)
+        results.append(res)
+
+    return results, errors
+
+
 def run_inference(
     *,
     suite_id: str,
@@ -118,35 +154,25 @@ def run_inference(
     model: str,
     rendered_prompt: str,
     params: Dict[str, Any] | None = None,
+    max_concurrency: int = 10,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     params = params or DEFAULT_PARAMS
 
-    assert "temperature" in params
-    assert "max_tokens" in params
-
-    results: List[Dict[str, Any]] = []
-    errors: List[Dict[str, Any]] = []
-
-    for tc in test_cases:
-        res = run_single(
+    return asyncio.run(
+        run_inference_async(
             suite_id=suite_id,
-            test_case=tc,
+            test_cases=test_cases,
             model=model,
             rendered_prompt=rendered_prompt,
             params=params,
+            max_concurrency=max_concurrency,
         )
-
-        if res.get("error"):
-            errors.append(res)
-
-        results.append(res)
-
-    return results, errors
+    )
 
 
 def run(test_case: Dict[str, Any]) -> EvaluationResult:
     start = time.time()
-    output = dummy_infer(test_case["prompt"])
+    output = asyncio.run(dummy_infer(test_case["prompt"]))
     latency_ms = int((time.time() - start) * 1000)
 
     provider_output = ProviderOutput(
@@ -167,8 +193,10 @@ def run(test_case: Dict[str, Any]) -> EvaluationResult:
         timestamp=EvaluationResult.now_iso(),
     )
 
+
 def _yield_jsonl(path: str):
     with open(path, "r") as f:
         for line in f:
             if line.strip():
                 yield json.loads(line)
+
