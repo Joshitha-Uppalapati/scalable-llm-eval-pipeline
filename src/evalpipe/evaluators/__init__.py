@@ -3,6 +3,7 @@ from evalpipe.evaluators.regex import regex_match
 from evalpipe.evaluators.contains import contains
 from evalpipe.evaluators.numeric import numeric_tolerance
 from evalpipe.evaluators.schema import schema_validate
+from .refusal import evaluate_refusal
 
 
 EVALUATORS = {
