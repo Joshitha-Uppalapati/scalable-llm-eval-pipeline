@@ -17,6 +17,7 @@ def estimate_cost(
 
     pt = prompt_tokens or 0
     ct = completion_tokens or 0
+    estimate_cost(prompt_tokens, completion_tokens, model)
 
     return (
         (pt / 1000) * pricing["prompt_per_1k"]

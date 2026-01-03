@@ -1,4 +1,3 @@
-
 from pathlib import Path
 from datetime import datetime
 import json
@@ -13,6 +12,7 @@ from evalpipe.aggregate import aggregate_results
 from evalpipe.storage import write_run_artifacts
 from evalpipe.report import generate_markdown_report
 from evalpipe.compare import compare_runs
+from evalpipe.runner import run_judge
 
 app = typer.Typer()
 
@@ -44,7 +44,7 @@ def run(
 
         results.append(result)
 
-        eval_out = evaluate(tc, result)
+        eval_out = evaluate(tc, result, judge_runner = run_judge)
         eval_out["id"] = tc["id"]
         evaluations.append(eval_out)
 
