@@ -119,3 +119,10 @@ suite
 ##Notes
 This project intentionally avoids dashboards, databases, and orchestration layers.
 
+## Known Limitations
+
+- Default runner uses a dummy provider unless configured with a real model.
+- Cost estimates are approximate and depend on provider pricing accuracy.
+- LLM-as-a-judge is optional and should not be treated as ground truth.
+- Caching is local and not designed for distributed environments.
+
