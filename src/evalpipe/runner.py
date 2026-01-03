@@ -1,4 +1,4 @@
-from typing import Dict, Any, Tuple, Iterable, List
+from typing import Dict, Any, Tuple, Iterable, List, Optional
 from datetime import datetime
 import time
 import json
@@ -48,6 +48,33 @@ async def dummy_infer(prompt: str) -> str:
     return "UNKNOWN"
 
 
+def _error_result(
+    *,
+    test_id: str,
+    rendered_prompt: str,
+    model: str,
+    start: float,
+    error_type: str,
+    error_message: str,
+    attempts: int,
+) -> Dict[str, Any]:
+    latency_ms = int((time.time() - start) * 1000)
+    return {
+        "id": test_id,
+        "prompt": rendered_prompt,
+        "output": None,
+        "model": model,
+        "latency_ms": latency_ms,
+        "prompt_tokens": None,
+        "completion_tokens": None,
+        "cache_hit": False,
+        "error": error_message,
+        "error_type": error_type,
+        "attempts": attempts,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+
+
 async def run_single(
     *,
     suite_id: str,
@@ -56,9 +83,11 @@ async def run_single(
     rendered_prompt: str,
     params: Dict[str, Any],
 ) -> Dict[str, Any]:
+    test_id = test_case["id"]
+
     cache_key = make_cache_key(
         suite_id=suite_id,
-        test_id=test_case["id"],
+        test_id=test_id,
         model=model,
         prompt=rendered_prompt,
         params=params,
@@ -70,15 +99,19 @@ async def run_single(
         return cached
 
     start = time.time()
-    last_error = None
+    last_error_type: Optional[str] = None
+    last_error_message: Optional[str] = None
 
-    for _ in range(MAX_RETRIES + 1):
+    for attempt in range(MAX_RETRIES + 1):
         try:
-            output = await dummy_infer(rendered_prompt)
-            latency_ms = int((time.time() - start) * 1000)
+            output = await asyncio.wait_for(
+                dummy_infer(rendered_prompt),
+                timeout=TIMEOUT_SECONDS,
+            )
 
+            latency_ms = int((time.time() - start) * 1000)
             result = {
-                "id": test_case["id"],
+                "id": test_id,
                 "prompt": rendered_prompt,
                 "output": output,
                 "model": model,
@@ -86,31 +119,32 @@ async def run_single(
                 "prompt_tokens": None,
                 "completion_tokens": None,
                 "cache_hit": False,
+                "attempts": attempt + 1,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
             }
 
             save_to_cache(cache_key, result)
             return result
 
+        except asyncio.TimeoutError:
+            last_error_type = "timeout"
+            last_error_message = "timeout"
         except Exception as e:
-            last_error = str(e)
-            if time.time() - start > TIMEOUT_SECONDS:
-                break
+            last_error_type = type(e).__name__
+            last_error_message = str(e) or "error"
 
-    latency_ms = int((time.time() - start) * 1000)
+        if attempt < MAX_RETRIES:
+            await asyncio.sleep(0.05 * (2**attempt))
 
-    return {
-        "id": test_case["id"],
-        "prompt": rendered_prompt,
-        "output": None,
-        "model": model,
-        "latency_ms": latency_ms,
-        "prompt_tokens": None,
-        "completion_tokens": None,
-        "cache_hit": False,
-        "error": last_error or "timeout",
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-    }
+    return _error_result(
+        test_id=test_id,
+        rendered_prompt=rendered_prompt,
+        model=model,
+        start=start,
+        error_type=last_error_type or "error",
+        error_message=last_error_message or "error",
+        attempts=MAX_RETRIES + 1,
+    )
 
 
 async def run_inference_async(
@@ -126,20 +160,33 @@ async def run_inference_async(
 
     async def guarded(tc: Dict[str, Any]) -> Dict[str, Any]:
         async with semaphore:
-            return await run_single(
-                suite_id=suite_id,
-                test_case=tc,
-                model=model,
-                rendered_prompt=rendered_prompt,
-                params=params,
-            )
+            start = time.time()
+            try:
+                return await run_single(
+                    suite_id=suite_id,
+                    test_case=tc,
+                    model=model,
+                    rendered_prompt=rendered_prompt,
+                    params=params,
+                )
+            except Exception as e:
+                return _error_result(
+                    test_id=tc.get("id", "unknown"),
+                    rendered_prompt=rendered_prompt,
+                    model=model,
+                    start=start,
+                    error_type=type(e).__name__,
+                    error_message=str(e) or "error",
+                    attempts=0,
+                )
 
     tasks = [guarded(tc) for tc in test_cases]
+    gathered = await asyncio.gather(*tasks, return_exceptions=False)
 
     results: List[Dict[str, Any]] = []
     errors: List[Dict[str, Any]] = []
 
-    for res in await asyncio.gather(*tasks):
+    for res in gathered:
         if res.get("error"):
             errors.append(res)
         results.append(res)
