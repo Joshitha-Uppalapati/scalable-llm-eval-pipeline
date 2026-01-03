@@ -27,21 +27,27 @@ For a given evaluation suite and prompt template, the pipeline:
 ---
 
 ## Repository Structure
+```text
 src/evalpipe/
-├── aggregate
-├── cli.
-├── compareison
-├── costs.p
-├── pricingons
-├── evaluatodge
-├── loaderder
-├── promptes
-├── reporttor
-├── runner
-├── storagence
-├── cac
-
-
+├── aggregate.py
+├── cli.py
+├── compare.py
+├── costs.py
+├── pricing.py
+├── evaluators/
+│ ├── exact.py
+│ ├── regex.py
+│ ├── contains.py
+│ ├── numeric.py
+│ ├── schema.py
+│ └── judge.py
+├── loader.py
+├── prompts/
+├── report.py
+├── runner.py
+├── storage.py
+└── cache/
+```
 All run outputs are written under `runs/` using timestamped directories.
 
 ---
@@ -52,6 +58,7 @@ Basic run:
 ```bash
 python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
   --prompt src/evalpipe/prompts/basic_v1.txt
+```
 
 Run with baseline comparison:
 
@@ -59,6 +66,7 @@ Run with baseline comparison:
 python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
   --prompt src/evalpipe/prompts/basic_v1.txt \
   --baseline runs/<BASELINE_RUN_ID>
+```
 
 ---
 
