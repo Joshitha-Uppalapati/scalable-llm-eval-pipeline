@@ -109,6 +109,8 @@ def run_single(
         "timestamp": datetime.utcnow().isoformat() + "Z",
     }
 
+assert "temperature" in params
+assert "max_tokens" in params
 
 def run_inference(
     *,
