@@ -1,5 +1,10 @@
 # Scalable LLM Evaluation Pipeline
 
+![CI](https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline/actions/workflows/demo.yml/badge.svg?branch=main)
+
+A production-grade, failure-aware evaluation pipeline for Large Language Models.
+Built to make prompt changes, model upgrades, and regressions visible before they ship.
+
 This repository contains a small, production-oriented evaluation framework for testing and comparing language model behavior over time.
 
 The goal is to make LLM evaluations:
@@ -26,6 +31,40 @@ For a given evaluation suite and prompt template, the pipeline:
 
 ---
 
+## Example Output
+Below is an example evaluation run rendered from persisted artifacts
+(`results.jsonl`, `evaluations.jsonl`, `summary.json`).
+
+![Evaluation Results](assets/dashboard2.png)
+
+---
+
+## Running an Evaluation
+Basic run:
+
+```bash
+python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
+  --prompt src/evalpipe/prompts/basic_v1.txt
+```
+
+Run with baseline comparison:
+
+```bash
+python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
+  --prompt src/evalpipe/prompts/basic_v1.txt \
+  --baseline runs/<BASELINE_RUN_ID>
+```
+
+---
+
+## Scalability Characteristics
+- Async inference execution with bounded concurrency
+- Streaming JSONL loading (no dataset fully loaded into memory)
+- Failure-isolated execution (one bad row does not kill a run)
+- Deterministic result ordering for reproducibility
+
+---
+
 ## Repository Structure
 ```text
 src/evalpipe/
@@ -49,24 +88,6 @@ src/evalpipe/
 └── cache/
 ```
 All run outputs are written under `runs/` using timestamped directories.
-
----
-
-## Running an Evaluation
-Basic run:
-
-```bash
-python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
-  --prompt src/evalpipe/prompts/basic_v1.txt
-```
-
-Run with baseline comparison:
-
-```bash
-python src/evalpipe/cli.py data/suites/basic_v1.jsonl \
-  --prompt src/evalpipe/prompts/basic_v1.txt \
-  --baseline runs/<BASELINE_RUN_ID>
-```
 
 ---
 
@@ -116,7 +137,13 @@ All deltas are surfaced in the generated report.
 - Deterministic prompt rendering
 - Exit codes suitable for CI gating
 
-The goal is not novelty. The goal is reliability.
+The goal is not novelty. The goal is predictable, reviewable behavior over time.
+
+---
+
+## CI Integration
+The repository includes a GitHub Actions workflow that runs a smoke evaluation on every push.
+Failures surface immediately via CI status and non-zero exit codes, making the pipeline safe to gate merges.
 
 ---
 
@@ -131,19 +158,30 @@ Language model behavior changes easily:
 ---
 
 ## Execution Flow
-suite
-  → prompt render
-    → inference
-      → evaluation
-        → aggregation
-          → artifacts
-            → comparison
-              → report
+```mermaid
+flowchart LR
+  A[JSONL Suite\nStreamed Loader]
+  B[Prompt Renderer\nDeterministic]
+  C[Async Runner\nFailure Aware]
+  D[Evaluator Registry\nExplicit Rules]
+  E[Aggregation]
+  F[Artifacts\nJSONL and Summary]
+  G[Baseline Comparison]
+  H[Report]
+
+  A --> B
+  B --> C
+  C --> D
+  D --> E
+  E --> F
+  F --> G
+  G --> H
+```
 
 ---
 
 ## Notes
-This Project intentionally avoids dashboards, databases, and orchestration layers.
+This project intentionally avoids dashboards, databases, and orchestration layers.
 
 ---
 
