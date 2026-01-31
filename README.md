@@ -1,36 +1,37 @@
 # Scalable LLM Evaluation Pipeline
 
+<<<<<<< HEAD
 ![CI](https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline/actions/workflows/demo.yml/badge.svg?branch=main)
 
 A production-grade, failure-aware evaluation pipeline for Large Language Models.
 Built to make prompt changes, model upgrades, and regressions visible before they ship.
 
 This repository contains a small, production-oriented evaluation framework for testing and comparing language model behavior over time.
+=======
+A CLI-first tool for tracking how language model behavior changes over time.
+>>>>>>> becdc72 (docs: clarify test coverage focus)
 
-The goal is to make LLM evaluations:
-- Reproducible  
-- Inspectable  
-- Comparable across runs  
-- Safe to gate in CI  
-This is a CLI-first tool. UI exploration was intentionally deprioritized.
-This is intentionally simple. Every artifact is written to disk. Nothing is hidden behind services or dashboards.
+I kept running into the same problem: after tweaking a prompt or switching models, I couldn’t tell if things actually got better or just different. This repository is my attempt to stop guessing and make those changes visible.
 
 ---
 
-## What This System Does
-For a given evaluation suite and prompt template, the pipeline:
+## What It Does
 
-- Loads test cases from a JSONL suite  
-- Renders prompts deterministically  
-- Executes model inference  
-- Evaluates outputs using explicit evaluators  
-- Aggregates metrics and cost signals  
-- Writes all artifacts to disk  
-- Optionally compares against a baseline run  
-- Surfaces regressions in a human-readable report  
+You give it:
+- A JSONL file with test cases
+- A prompt template
+
+It gives you back:
+- Pass/fail results for each test
+- Cost and latency estimates
+- An optional comparison against a previous run
+- All artifacts written to disk for later inspection
+
+The goal is to catch regressions before they hit production.
 
 ---
 
+<<<<<<< HEAD
 ## Example Output
 Below is an example evaluation run rendered from persisted artifacts
 (`results.jsonl`, `evaluations.jsonl`, `summary.json`).
@@ -99,37 +100,107 @@ Each run generates:
 - summary.json
 - meta.json
 - report.md
+=======
+## Quick Start
 
-These artifacts are sufficient to reproduce, audit, and review a run without re-executing inference.
+```bash
+git clone https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline.git
+cd scalable-llm-eval-pipeline
+pip install -e .
+
+Run a basic evaluation
+python src/evalpipe/cli.py run data/suites/basic_v1.jsonl \
+  --prompt src/evalpipe/prompts/basic_v1.txt
+
+Inspect results
+cat runs/*/summary.json
+ ```
+The first run can be used as a baseline. Future runs can compare against it by passing `--baseline`.
 
 ---
 
-## Evaluation Model
-Evaluations are explicit and deterministic. Supported types include:
-- Exact match
-- Regex match
-- Substring containment
-- Numeric tolerance
-- JSON schema validation
-- Optional LLM-as-a-judge (with rubric)
+## How It Works
+JSONL test suite
+  → prompt rendering
+    → model inference
+      → evaluation
+        → aggregation
+          → files on disk
+Each test case defines:
+- Input data
+- Expected output or evaluation rule
+- A category for grouping results
+>>>>>>> becdc72 (docs: clarify test coverage focus)
 
-Each test case defines its own evaluation logic. No implicit scoring.
+The runner:
+- Streams test cases (does not load everything into memory)
+- Executes inference with rate limiting
+- Evaluates outputs deterministically
+- Writes results as JSONL
+If a baseline run is provided, pass rates and regressions are compared automatically.
+
+---
+
+## Project Structure
+src/evalpipe/
+├── cli.py             
+├── runner.py           
+├── loader.py           
+├── evaluators/     
+├── aggregate.py 
+├── compare.py 
+├── report.py        
+└── storage.py
+
+data/suites/ 
+examples/
+tests/
+
+The `examples/exploratory/` folder contains early prototypes kept for reference.
+
+---
+
+## Evaluation Types
+Each test case explicitly selects its evaluator:
+exact – exact string match
+regex – pattern match
+contains – substring check
+numeric – numeric tolerance
+schema – JSON schema validation
+judge – optional LLM-as-a-judge (slower, subjective)
+
+Example test case:
+```code
+{
+  "id": "greeting_formal",
+  "category": "tone",
+  "input": { "user_name": "Dr. Smith" },
+  "evaluator": "contains",
+  "expected": "Dear Dr. Smith"
+}
+```
+There is no implicit scoring. All evaluation logic is explicit.
 
 ---
 
 ## Baseline Comparison
-When a baseline run is provided, the system compares:
-- Pass rate
-- Latency
-- Cost
-- Category-level results
+You can compare a run against a previous one:
+```bash
+python src/evalpipe/cli.py run data/suites/basic_v1.jsonl \
+  --prompt src/evalpipe/prompts/basic_v2.txt \
+  --baseline runs/20260115_143022
+```
+The generated report highlights:
 - Pass → fail regressions
 - Fail → pass improvements
+- Cost and latency deltas
+- Category-level changes
 
-All deltas are surfaced in the generated report.
+If regressions are detected, the CLI exits with a non-zero status for CI gating.
 
 ---
 
+<<<<<<< HEAD
 ## Design Principles
 - No external services
 - No hidden state
@@ -144,19 +215,29 @@ The goal is not novelty. The goal is predictable, reviewable behavior over time.
 ## CI Integration
 The repository includes a GitHub Actions workflow that runs a smoke evaluation on every push.
 Failures surface immediately via CI status and non-zero exit codes, making the pipeline safe to gate merges.
+=======
+## Output Files
+Each run creates a timestamped directory under runs/:
+```pgsql
+runs/20260131_033533/
+├── test_cases.jsonl
+├── results.jsonl
+├── evaluations.jsonl
+├── summary.json
+├── meta.json
+└── report.md
+```
+These files are sufficient to audit or review a run without re-running inference.
+>>>>>>> becdc72 (docs: clarify test coverage focus)
 
 ---
 
-## Why This Exists
-Language model behavior changes easily:
-- Prompt edits
-- Evaluation logic changes
-- Model version upgrades
-- Without stored baselines, regressions are easy to miss.
-- This pipeline makes those changes explicit and reviewable
+## CI Integration
+A GitHub Actions workflow runs a smoke evaluation on each push.
+If pass rate drops or regressions are detected, the workflow fails.
 
----
 
+<<<<<<< HEAD
 ## Execution Flow
 ```mermaid
 flowchart LR
@@ -184,9 +265,34 @@ flowchart LR
 This project intentionally avoids dashboards, databases, and orchestration layers.
 
 ---
+=======
+>>>>>>> becdc72 (docs: clarify test coverage focus)
 
 ## Known Limitations
-- The default runner uses a dummy provider unless configured with a real model.
-- Cost estimates are approximate and depend on provider pricing accuracy.
-- LLM-as-a-judge is optional and should not be treated as ground truth.
-- Caching is local and not designed for distributed environments.
+Things that are not solved yet:
+- Caching is local only (no distributed support)
+- Cost estimation assumes OpenAI-style pricing
+- No retry or backoff logic on API failures
+- Judge-based evaluations can be slow and inconsistent
+- Some error messages could be clearer
+These are tradeoffs, not oversights.
+
+---
+
+## Testing
+```bash
+# Run tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=src --cov-report=term
+```
+- Current test coverage is ~50% and focuses on evaluators and core execution paths.
+- CLI and reporting paths are intentionally lightly tested.
+
+---
+
+## Why I Built This
+I was iterating on prompts for a chatbot and realized I had no reliable way to tell whether changes were improvements or just different failures.
+Existing tools either felt too heavy (databases, dashboards, services) or too shallow (single accuracy numbers, no regression tracking).
+This is what I wanted instead: simple, inspectable, and easy to run in CI.
