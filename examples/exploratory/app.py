@@ -1,3 +1,8 @@
+# NOTE:
+# This file represents an early exploration before the pipeline
+# structure stabilized. It is kept here for reference.
+
+
 import json
 from pathlib import Path
 import streamlit as st
