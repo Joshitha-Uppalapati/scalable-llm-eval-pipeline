@@ -25,3 +25,4 @@ reports/
 .DS_Store
 
 src/*.egg-info/
+.coverage
