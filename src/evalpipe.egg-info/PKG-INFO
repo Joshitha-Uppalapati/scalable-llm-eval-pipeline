@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: evalpipe
-Version: 0.1.0
-Summary: Scalable LLM evaluation pipeline
-Requires-Python: >=3.10
