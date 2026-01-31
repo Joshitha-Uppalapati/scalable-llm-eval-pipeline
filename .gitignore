@@ -26,3 +26,6 @@ reports/
 
 src/*.egg-info/
 .coverage
+.coverage
+htmlcov/
+.pytest_cache/
