@@ -1,5 +1,5 @@
 from typing import Dict, Any, Tuple, Iterable, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 import json
 import asyncio
@@ -71,7 +71,7 @@ def _error_result(
         "error": error_message,
         "error_type": error_type,
         "attempts": attempts,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
 
@@ -120,7 +120,7 @@ async def run_single(
                 "completion_tokens": None,
                 "cache_hit": False,
                 "attempts": attempt + 1,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             }
 
             save_to_cache(cache_key, result)
