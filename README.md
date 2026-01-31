@@ -128,7 +128,6 @@ python -m pytest
 python -m pytest --cov=src --cov-report=term
 ```
 Current test coverage focuses on evaluators and core execution paths.
-(CLI/reporting paths are intentionally lightly tested.)
 
 ---
 
