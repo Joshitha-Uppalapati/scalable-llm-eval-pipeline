@@ -12,7 +12,7 @@ The goal is to make LLM evaluations:
 - Inspectable  
 - Comparable across runs  
 - Safe to gate in CI  
-
+This is a CLI-first tool. UI exploration was intentionally deprioritized.
 This is intentionally simple. Every artifact is written to disk. Nothing is hidden behind services or dashboards.
 
 ---
