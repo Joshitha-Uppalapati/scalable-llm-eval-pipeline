@@ -1,4 +1,4 @@
-typer
+typer>=0.9.0
 
 openai==2.14.0
 jsonschema==4.25.1
