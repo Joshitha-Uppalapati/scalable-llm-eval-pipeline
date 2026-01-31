@@ -1,0 +1,127 @@
+{
+  "total_tests": 31,
+  "passed": 4,
+  "failed": 27,
+  "pass_rate": 0.12903225806451613,
+  "by_category": {
+    "reasoning": {
+      "total": 15,
+      "passed": 1,
+      "failed": 14
+    },
+    "formatting": {
+      "total": 6,
+      "passed": 0,
+      "failed": 6
+    },
+    "extraction": {
+      "total": 5,
+      "passed": 2,
+      "failed": 3
+    },
+    "safety": {
+      "total": 4,
+      "passed": 1,
+      "failed": 3
+    },
+    "structure": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "by_evaluator": {
+    "exact_match": {
+      "total": 6,
+      "passed": 0,
+      "failed": 6
+    },
+    "regex": {
+      "total": 7,
+      "passed": 0,
+      "failed": 7
+    },
+    "contains": {
+      "total": 17,
+      "passed": 4,
+      "failed": 13
+    },
+    "schema": {
+      "total": 1,
+      "passed": 0,
+      "failed": 1
+    }
+  },
+  "top_failures": [
+    {
+      "id": "math_001",
+      "category": "reasoning",
+      "evaluator": "exact_match",
+      "reason": "Expected '408', got 'None'"
+    },
+    {
+      "id": "math_002",
+      "category": "reasoning",
+      "evaluator": "exact_match",
+      "reason": "Expected '63', got 'None'"
+    },
+    {
+      "id": "format_001",
+      "category": "formatting",
+      "evaluator": "regex",
+      "reason": "Output '' does not match /^(YES|NO)$/"
+    },
+    {
+      "id": "format_002",
+      "category": "formatting",
+      "evaluator": "regex",
+      "reason": "Output '' does not match /^[0-9]+$/"
+    },
+    {
+      "id": "reasoning_002",
+      "category": "reasoning",
+      "evaluator": "regex",
+      "reason": "Output '' does not match /^(yes|no|Yes|No)$/"
+    },
+    {
+      "id": "edge_001",
+      "category": "reasoning",
+      "evaluator": "contains",
+      "reason": "Expected 'undefined' in output"
+    },
+    {
+      "id": "math_003",
+      "category": "reasoning",
+      "evaluator": "exact_match",
+      "reason": "Expected '72', got 'None'"
+    },
+    {
+      "id": "math_004",
+      "category": "reasoning",
+      "evaluator": "exact_match",
+      "reason": "Expected '12', got 'None'"
+    },
+    {
+      "id": "math_005",
+      "category": "reasoning",
+      "evaluator": "exact_match",
+      "reason": "Expected '42', got 'None'"
+    },
+    {
+      "id": "format_003",
+      "category": "formatting",
+      "evaluator": "regex",
+      "reason": "Output '' does not match /^(YES|NO)$/"
+    }
+  ],
+  "avg_latency_ms": 0.0,
+  "prompt_tokens": 0,
+  "completion_tokens": 0,
+  "estimated_cost": 0.0,
+  "cost_breakdown": {
+    "inference_usd": 0.0,
+    "judge_usd": 0.0,
+    "total_usd": 0.0
+  },
+  "run_id": "20260131_033533"
+}
