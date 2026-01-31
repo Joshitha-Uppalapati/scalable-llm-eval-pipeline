@@ -1,10 +1,9 @@
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import sys
-import shutil
 import typer
-from dataclasses import asdict
+import shutil
 
 from evalpipe.loader import load_suite
 from evalpipe.prompts.render import render_prompt
@@ -32,7 +31,7 @@ def run(
     model: str = typer.Option("dummy-v0"),
     baseline: Path | None = typer.Option(None),
 ):
-    run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     run_dir = Path("runs") / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -42,19 +41,28 @@ def run(
     evaluations: list[dict] = []
 
     for tc in test_cases:
-        rendered = render_prompt(prompt, tc)
+        rendered_prompt = render_prompt(prompt, tc)
 
-        tc_for_run = dict(tc)
-        tc_for_run["prompt"] = rendered
+        tc_for_runner = dict(tc)
+        tc_for_runner["prompt"] = rendered_prompt
 
-        result_obj = run_single(tc_for_run)
+        result_obj = run_single(tc_for_runner)
 
-        # If EvaluationResult is a dataclass
-        result = asdict(result_obj)
+        provider_out = result_obj.provider_output
 
-        result["rendered_prompt"] = rendered
-        result["prompt_version"] = prompt.stem
-        result["model"] = model
+        result = {
+            "id": tc["id"],
+            "prompt": rendered_prompt,
+            "output": provider_out.output,
+            "model": provider_out.model,
+            "latency_ms": provider_out.latency_ms,
+            "prompt_tokens": provider_out.prompt_tokens,
+            "completion_tokens": provider_out.completion_tokens,
+            "cache_hit": False,
+            "timestamp": result_obj.timestamp,
+            "rendered_prompt": rendered_prompt,
+            "prompt_version": prompt.stem,
+        }
 
         results.append(result)
 
@@ -80,14 +88,15 @@ def run(
         baseline_summary = json.loads((baseline / "summary.json").read_text())
         comparison = compare_runs(baseline_summary, summary)
 
+        # Treat any drop in pass rate as regression
         if comparison.get("pass_rate_delta", 0) < 0:
             regression_detected = True
 
     generate_markdown_report(run_dir, summary, comparison)
 
     typer.echo(f"Run written to {run_dir}")
-    typer.echo(f"Pass rate: {summary['pass_rate'] * 100:.2f}%")
-    typer.echo(f"Estimated cost (USD): ${summary.get('estimated_cost', 0.0)}")
+    typer.echo(f"Pass rate: {summary['pass_rate']:.2f}%")
+    typer.echo(f"Estimated cost (USD): ${summary['estimated_cost']}")
 
     if regression_detected:
         typer.echo("Regression detected compared to baseline.")
