@@ -2,8 +2,10 @@ from pathlib import Path
 from datetime import datetime
 import json
 import sys
-import typer
 import shutil
+import typer
+from dataclasses import asdict
+
 from evalpipe.loader import load_suite
 from evalpipe.prompts.render import render_prompt
 from evalpipe.runner import run as run_single
@@ -22,6 +24,7 @@ def clear_cache():
     shutil.rmtree(".cache", ignore_errors=True)
     typer.echo("Cache cleared")
 
+
 @app.command()
 def run(
     suite: Path,
@@ -39,17 +42,23 @@ def run(
     evaluations: list[dict] = []
 
     for tc in test_cases:
-        rendered_prompt = render_prompt(prompt, tc)
+        rendered = render_prompt(prompt, tc)
 
-        result_obj = run_single(tc)
-        result = result_obj.__dict__.copy()
+        tc_for_run = dict(tc)
+        tc_for_run["prompt"] = rendered
 
-        result["rendered_prompt"] = rendered_prompt
+        result_obj = run_single(tc_for_run)
+
+        # If EvaluationResult is a dataclass
+        result = asdict(result_obj)
+
+        result["rendered_prompt"] = rendered
         result["prompt_version"] = prompt.stem
+        result["model"] = model
 
         results.append(result)
 
-        eval_out = evaluate(tc, result, judge_runner = run_judge)
+        eval_out = evaluate(tc, result, judge_runner=run_judge)
         eval_out["id"] = tc["id"]
         evaluations.append(eval_out)
 
@@ -77,14 +86,14 @@ def run(
     generate_markdown_report(run_dir, summary, comparison)
 
     typer.echo(f"Run written to {run_dir}")
-    typer.echo(f"Pass rate: {summary['pass_rate']:.2f}%")
-    typer.echo(f"Estimated cost (USD): ${summary['estimated_cost']}")
+    typer.echo(f"Pass rate: {summary['pass_rate'] * 100:.2f}%")
+    typer.echo(f"Estimated cost (USD): ${summary.get('estimated_cost', 0.0)}")
 
     if regression_detected:
         typer.echo("Regression detected compared to baseline.")
-        sys.exit(1)
+        raise typer.Exit(code=1)
 
-    sys.exit(0)
+    raise typer.Exit(code=0)
 
 
 if __name__ == "__main__":
