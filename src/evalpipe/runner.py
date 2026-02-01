@@ -11,16 +11,34 @@ from evalpipe.cache.simple_cache import (
     save_to_cache,
 )
 
+# FIXME: prompt rendering assumes UTF-8 text files.
+# This will break if prompts are generated from non-UTF8 sources.
+#
+# NOTE: considered using a task queue (Ray / Celery) here,
+# but it felt like overkill for single-machine evaluation runs.
+
+# Default generation params.
+# These mirror what I typically start with when sanity-checking prompts.
 DEFAULT_PARAMS = {
     "temperature": 0.0,
     "max_tokens": 64,
 }
 
+# Retry behavior is intentionally conservative.
+# In practice, most failures here are deterministic (bad prompt / bad logic),
+# not transient network issues.
 MAX_RETRIES = 2
+
+# Timeout prevents a single bad call from blocking the entire run.
+# Chosen after testing — almost all dummy calls finish instantly.
 TIMEOUT_SECONDS = 10
 
 
 async def dummy_infer(prompt: str) -> str:
+    """
+    Dummy provider used for local testing and CI.
+    Keeps behavior deterministic so regressions are easy to spot.
+    """
     await asyncio.sleep(0)
     p = prompt.lower()
 
@@ -58,6 +76,10 @@ def _error_result(
     error_message: str,
     attempts: int,
 ) -> Dict[str, Any]:
+    """
+    Normalized error payload so downstream aggregation
+    doesn't need special-case handling.
+    """
     latency_ms = int((time.time() - start) * 1000)
     return {
         "id": test_id,
@@ -71,7 +93,9 @@ def _error_result(
         "error": error_message,
         "error_type": error_type,
         "attempts": attempts,
-        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "timestamp": datetime.now(timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z"),
     }
 
 
@@ -83,8 +107,14 @@ async def run_single(
     rendered_prompt: str,
     params: Dict[str, Any],
 ) -> Dict[str, Any]:
+    """
+    Executes a single test case with caching + retries.
+    """
     test_id = test_case["id"]
 
+    # Cache key includes prompt + params + model to avoid re-running
+    # identical evaluations. This saved a noticeable amount of time
+    # when re-running the same suite during development.
     cache_key = make_cache_key(
         suite_id=suite_id,
         test_id=test_id,
@@ -102,15 +132,18 @@ async def run_single(
     last_error_type: Optional[str] = None
     last_error_message: Optional[str] = None
 
+    # Retry loop: I originally tried higher retry counts,
+    # but found retries rarely help unless the failure is a timeout.
     for attempt in range(MAX_RETRIES + 1):
         try:
+            # Timeout prevents hanging forever on stalled calls.
             output = await asyncio.wait_for(
                 dummy_infer(rendered_prompt),
                 timeout=TIMEOUT_SECONDS,
             )
 
             latency_ms = int((time.time() - start) * 1000)
-            result = {
+            llm_response = {
                 "id": test_id,
                 "prompt": rendered_prompt,
                 "output": output,
@@ -120,11 +153,13 @@ async def run_single(
                 "completion_tokens": None,
                 "cache_hit": False,
                 "attempts": attempt + 1,
-                "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "timestamp": datetime.now(timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z"),
             }
 
-            save_to_cache(cache_key, result)
-            return result
+            save_to_cache(cache_key, llm_response)
+            return llm_response
 
         except asyncio.TimeoutError:
             last_error_type = "timeout"
@@ -134,7 +169,9 @@ async def run_single(
             last_error_message = str(e) or "error"
 
         if attempt < MAX_RETRIES:
-            await asyncio.sleep(0.05 * (2**attempt))
+            # Small backoff to avoid tight retry loops.
+            # TODO: switch to exponential backoff if real providers are added.
+            await asyncio.sleep(0.05 * (2 ** attempt))
 
     return _error_result(
         test_id=test_id,
@@ -156,22 +193,31 @@ async def run_inference_async(
     params: Dict[str, Any],
     max_concurrency: int,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Runs inference over an entire suite with bounded concurrency.
+    """
+
+    # Semaphore limits concurrent in-flight requests.
+    # I initially tried unbounded asyncio.gather(), but it spiked memory
+    # and made failures harder to debug under load.
     semaphore = asyncio.Semaphore(max_concurrency)
 
-    async def guarded(tc: Dict[str, Any]) -> Dict[str, Any]:
+    async def guarded(eval_case: Dict[str, Any]) -> Dict[str, Any]:
         async with semaphore:
             start = time.time()
             try:
                 return await run_single(
                     suite_id=suite_id,
-                    test_case=tc,
+                    test_case=eval_case,
                     model=model,
                     rendered_prompt=rendered_prompt,
                     params=params,
                 )
             except Exception as e:
+                # This used to silently fail — keeping an explicit error
+                # makes debugging bad test cases much easier.
                 return _error_result(
-                    test_id=tc.get("id", "unknown"),
+                    test_id=eval_case.get("id", "unknown"),
                     rendered_prompt=rendered_prompt,
                     model=model,
                     start=start,
@@ -203,6 +249,9 @@ def run_inference(
     params: Dict[str, Any] | None = None,
     max_concurrency: int = 10,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Synchronous wrapper used by the CLI.
+    """
     params = params or DEFAULT_PARAMS
 
     return asyncio.run(
@@ -218,6 +267,9 @@ def run_inference(
 
 
 def run(test_case: Dict[str, Any]) -> EvaluationResult:
+    """
+    Legacy single-case runner kept for compatibility with older tests.
+    """
     start = time.time()
     output = asyncio.run(dummy_infer(test_case["prompt"]))
     latency_ms = int((time.time() - start) * 1000)
@@ -242,8 +294,10 @@ def run(test_case: Dict[str, Any]) -> EvaluationResult:
 
 
 def _yield_jsonl(path: str):
+    """
+    Lightweight JSONL loader to avoid loading entire suites into memory.
+    """
     with open(path, "r") as f:
         for line in f:
             if line.strip():
                 yield json.loads(line)
-
