@@ -22,6 +22,8 @@ It produces:
 
 The goal is simple: catch regressions before they hit production.
 
+---
+
 ## Quick start
 
 ```bash
@@ -30,13 +32,14 @@ cd scalable-llm-eval-pipeline
 pip install -e .
 
 # Run a basic evaluation
-python src/evalpipe/cli.py run data/suites/basic_v1.jsonl \
+evalpipe run data/suites/basic_v1.jsonl \
   --prompt src/evalpipe/prompts/basic_v1.txt
 
 # Inspect results
 cat runs/*/summary.json | head
 ```
 If you want to compare against a previous run, pass `--baseline runs/<RUN_ID>`.
+
 ## How it works
 JSONL suite → prompt render → inference → evaluation → aggregation → files on disk
 
@@ -50,6 +53,8 @@ The runner:
 - Runs inference with bounded concurrency
 - Evaluates outputs using explicit evaluators
 - Writes results and summaries as JSONL/JSON
+
+---
 
 ## Project Structure
 ```text
@@ -122,6 +127,8 @@ The example mirrors how I validate the pipeline locally before comparing runs or
 pip install -e .
 bash examples/01_basic_eval.sh
 ```
+
+---
 
 ## CI
 A GitHub Actions workflow runs a smoke test on each push.
