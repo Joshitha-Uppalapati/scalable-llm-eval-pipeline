@@ -93,7 +93,7 @@ The report highlights:
 - Fail → pass improvements
 - Cost and latency deltas
 - Category-level changes
-If regressions are detected, the CLI exits non-zero (so it can fail CI).
+If regressions are detected, the CLI exits non-zero. In CI, this step runs as a smoke test and does not gate merges.
 
 ---
 
@@ -115,7 +115,7 @@ A single runnable example is provided:
 
 - `examples/01_basic_eval.sh` — runs the pipeline end to end using the dummy provider
 - `examples/sample_outputs/summary.example.json` — example output for reference
-The example mirrors how I validate the pipeline locally before comparing runs.
+The example mirrors how I validate the pipeline locally before comparing runs or adding new test cases.
 
 ## Running the example
 ```bash
@@ -125,7 +125,7 @@ bash examples/01_basic_eval.sh
 
 ## CI
 A GitHub Actions workflow runs a smoke test on each push.
-If regressions are detected (or the run fails), CI fails.
+Unit tests gate CI. The CLI runs as a smoke test to verify end-to-end execution and may exit non-zero when regressions are detected.
 
 ## Testing
 ```bash
