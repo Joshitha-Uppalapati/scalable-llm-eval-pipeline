@@ -9,15 +9,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - run: |
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
           pip install -e .
 
-      - run: pytest -q
+      - name: Run unit tests
+        run: |
+          pytest -q
+
+      - name: Run CLI smoke evaluation
+        run: |
+          python src/evalpipe/cli.py run data/suites/basic_v1.jsonl \
+            --prompt src/evalpipe/prompts/basic_v1.txt
