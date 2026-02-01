@@ -1,14 +1,36 @@
 from pathlib import Path
-from typing import Dict
+import hashlib
+from typing import Dict, Any
 
 
-def render_prompt(template_path: Path, test_case: Dict) -> str:
+def load_prompt(path: str):
     """
-    Renders a prompt template by injecting test case values.
-    Currently supports {{prompt}} replacement.
+    Loads a prompt file and returns both the raw text and a stable hash.
+
+    The hash is used to detect prompt changes across runs so regressions
+    can be attributed to prompt edits instead of model behavior.
     """
-    template = template_path.read_text()
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
 
-    rendered = template.replace("{{prompt}}", test_case["prompt"])
+    content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return text, content_hash
 
-    return rendered.strip()
+
+def render_prompt(prompt_path: Path, test_case: Dict[str, Any]) -> str:
+    """
+    Renders a prompt template using {{field}} placeholders.
+
+    I intentionally avoided Jinja or heavier templating here.
+    Simple string replacement keeps prompt behavior obvious
+    and avoids surprises during debugging.
+    """
+    template_text, _ = load_prompt(str(prompt_path))
+
+    rendered = template_text
+
+    for key, value in test_case.items():
+        placeholder = f"{{{{{key}}}}}"
+        rendered = rendered.replace(placeholder, str(value))
+
+    return rendered
