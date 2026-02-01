@@ -1,6 +1,4 @@
-from pathlib import Path
-from typing import Dict
-
+from evalpipe.prompts.render import render_prompt
 
 def render_prompt(template_path: Path, test_case: Dict) -> str:
     template = template_path.read_text()

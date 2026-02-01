@@ -1,5 +1,7 @@
 # Scalable LLM Evaluation Pipeline
 
+[![CI](https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline/actions/workflows/demo.yml/badge.svg)](https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline/actions)
+
 A CLI-first tool for tracking how language model behavior changes over time.
 
 I kept running into the same problem: after tweaking a prompt or switching models, I couldn’t tell if things actually got better or just different. This repo is my way of stopping the guesswork and making changes reviewable.
@@ -32,10 +34,9 @@ python src/evalpipe/cli.py run data/suites/basic_v1.jsonl \
   --prompt src/evalpipe/prompts/basic_v1.txt
 
 # Inspect results
-cat runs/*/summary.json
+cat runs/*/summary.json | head
 ```
-If you want to compare against a previous run, pass --baseline.
-
+If you want to compare against a previous run, pass `--baseline runs/<RUN_ID>`.
 ## How it works
 JSONL suite → prompt render → inference → evaluation → aggregation → files on disk
 
@@ -66,7 +67,7 @@ data/suites/
 examples/               
 tests/        
 ```          
-Early prototypes (kept on purpose) live in examples/exploratory/.
+Some exploratory experiments are kept in `examples/exploratory/` for reference. They are not part of the core pipeline.
 
 ---
 
@@ -110,11 +111,17 @@ runs/20260131_033533/
 These files are enough to audit a run without re-running inference.
 
 ## Examples
-Runnable scripts live in examples/:
-- examples/01_basic_eval.sh
-- examples/02_openai_eval.sh
-- examples/sample_outputs/summary.json
-They mirror how I actually run and sanity-check the pipeline.
+A single runnable example is provided:
+
+- `examples/01_basic_eval.sh` — runs the pipeline end to end using the dummy provider
+- `examples/sample_outputs/summary.example.json` — example output for reference
+The example mirrors how I validate the pipeline locally before comparing runs.
+
+## Running the example
+```bash
+pip install -e .
+bash examples/01_basic_eval.sh
+```
 
 ## CI
 A GitHub Actions workflow runs a smoke test on each push.
