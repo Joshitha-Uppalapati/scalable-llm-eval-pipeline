@@ -22,6 +22,14 @@ It produces:
 
 The goal is simple: catch regressions before they hit production.
 
+## Design Decisions
+
+**Why cache keys include prompt + parameters**
+Prompt wording changes are often more impactful than model changes. Including the rendered prompt and generation parameters in the cache key makes regressions caused by prompt edits explicit and traceable.
+
+**Why semaphore-based concurrency**
+Early versions used unbounded concurrency, which made failures noisy and hard to debug. A semaphore keeps runs stable under load and mirrors how real systems are rate-limited in production.
+
 ---
 
 ## Quick start
@@ -78,12 +86,12 @@ Some exploratory experiments are kept in `examples/exploratory/` for reference. 
 
 ## Evaluation types
 Each test case explicitly selects an evaluator:
-- exact : exact string match
-- regex : pattern match
-- contains : substring check
-- numeric : numeric tolerance
-- schema : JSON schema validation
-- judge : optional LLM-as-a-judge (slower, subjective)
+- exact: exact string match
+- regex: pattern match
+- contains: substring check
+- numeric: numeric tolerance
+- schema: JSON schema validation
+- judge: optional LLM-as-a-judge (slower, subjective)
 There is no implicit scoring. The evaluation logic is always explicit.
 
 ## Baseline comparison
@@ -116,11 +124,25 @@ runs/20260131_033533/
 These files are enough to audit a run without re-running inference.
 
 ## Examples
-A single runnable example is provided:
-
-- `examples/01_basic_eval.sh` — runs the pipeline end to end using the dummy provider
+A single runnable example is provided for local validation:
+- `examples/01_basic_eval.sh` — runs the full workflow using the dummy provider
 - `examples/sample_outputs/summary.example.json` — example output for reference
 The example mirrors how I validate the pipeline locally before comparing runs or adding new test cases.
+
+- Dummy provider ensures deterministic CI. Real provider example is included for integration demonstration.
+- `examples/with_openai.py` optional OpenAI example (requires OPENAI_API_KEY)
+
+## Real Provider Example (Optional)
+
+By default, this project uses a dummy provider to keep CI runs fast,
+cheap, and fully deterministic.
+
+A real provider integration example is included in
+`examples/with_openai.py` to demonstrate how the pipeline connects
+to an actual LLM API.
+
+This script is optional, not used in CI, and requires an API key
+to be set locally.
 
 ## Running the example
 ```bash
@@ -150,5 +172,5 @@ Current test coverage focuses on evaluators and core execution paths.
 - Cost estimation assumes OpenAI-style pricing inputs
 - No retry/backoff on API failures yet
 - Judge-based evaluation can be slow and inconsistent
-- Some error messages could be clearer
+- Some error messages could be clearer under failure heavy worloads
 These are tradeoffs I’ve left visible instead of hiding behind extra layers.
