@@ -4,7 +4,7 @@
 
 A CLI-first tool for tracking how language model behavior changes over time.
 
-I kept running into the same problem: after tweaking a prompt or switching models, I couldn’t tell if things actually got better or just different. This repo is my way of stopping the guesswork and making changes reviewable.
+I kept running into the same problem: after tweaking a prompt or switching models, I couldn’t tell if things actually got better or just different. This is what I built to stop guessing and make changes reviewable.
 
 ---
 
@@ -22,6 +22,20 @@ It produces:
 
 The goal is simple: catch regressions before they hit production.
 
+## Example: Regression caught
+
+While testing a prompt change, I noticed pass rate stayed roughly the same, but failures shifted into edge cases involving numeric outputs.
+
+Baseline:
+- Pass rate: 82%
+- Numeric category: 90%
+
+New run:
+- Pass rate: 83%
+- Numeric category: 72%
+
+The change looked like an improvement overall, but degraded specific cases. This is exactly the kind of regression this pipeline is meant to catch.
+
 ## Design Decisions
 
 **Why cache keys include prompt + parameters**
@@ -33,6 +47,8 @@ Early versions used unbounded concurrency, which made failures noisy and hard to
 ---
 
 ## Quick start
+
+I usually run this locally before changing prompts or models, then compare against the last stable run.
 
 ```bash
 git clone https://github.com/Joshitha-Uppalapati/scalable-llm-eval-pipeline.git
@@ -47,6 +63,7 @@ evalpipe run data/suites/basic_v1.jsonl \
 cat runs/*/summary.json | head
 ```
 If you want to compare against a previous run, pass `--baseline runs/<RUN_ID>`.
+
 
 ## How it works
 JSONL suite → prompt render → inference → evaluation → aggregation → files on disk
@@ -172,5 +189,5 @@ Current test coverage focuses on evaluators and core execution paths.
 - Cost estimation assumes OpenAI-style pricing inputs
 - No retry/backoff on API failures yet
 - Judge-based evaluation can be slow and inconsistent
-- Some error messages could be clearer under failure heavy worloads
+- Some error messages could be clearer under failure-heavy workloads.
 These are tradeoffs I’ve left visible instead of hiding behind extra layers.
